@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 typedef enum ROLE {
     MANAGER,
@@ -98,17 +100,47 @@ void get_type(COMMAND *command, char *s) {
     }
 }
 
-// argv start from the first argument (right after the "--command"); argc is offset as well
-void execute(COMMAND *command, int argc, char **argv) {
-    printf("%d, %s\n", argc, argv[0]);
+// TODO: Implement these
+void execute_add(COMMAND *command, int argc, char **argv) {
+    if(mkdir(argv[0], 0750)) {
+        perror("Failed to create district directory");
+    }
+}
 
+void execute_list(COMMAND *command, int argc, char **argv) {
+    
+}
+
+void execute_view(COMMAND *command, int argc, char **argv) {
+    
+}
+
+void execute_remove_report(COMMAND *command, int argc, char **argv) {
+    
+}
+
+void execute_add_report(COMMAND *command, int argc, char **argv) {
+    
+}
+
+void execute_update_treshold(COMMAND *command, int argc, char **argv) {
+    
+}
+
+void execute_filter(COMMAND *command, int argc, char **argv) {
+    
+}
+
+// these argv start right after the "--command"; argc is smaller as well.
+void execute(COMMAND *command, int argc, char **argv) {
+    // TODO: Check role using chmod in each case.
     switch (command->type) {
         case ADD:
             if (argc != 1) {
                 fprintf(stderr, "Invalid argument count for the ADD command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_add(command, argc, argv);
         break;
 
         case LIST:
@@ -116,7 +148,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the LIST command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_list(command, argc, argv);
         break;
 
         case VIEW:
@@ -124,7 +156,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the VIEW command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_view(command, argc, argv);
         break;
 
         case REMOVE_REPORT:
@@ -132,7 +164,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the REMOVE_REPORT command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_remove_report(command, argc, argv);
         break;
 
         case ADD_REPORT:
@@ -141,7 +173,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the ADD_REPORT command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_add_report(command, argc, argv);
         break;
 
         case UPDATE_TRESHOLD:
@@ -149,7 +181,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the UPDATE_TRESHOLD command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_update_treshold(command, argc, argv);
         break;
 
         case FILTER:
@@ -157,7 +189,7 @@ void execute(COMMAND *command, int argc, char **argv) {
                 fprintf(stderr, "Invalid argument count for the FILTER command\n");
                 exit(-1);
             }
-            // TO DO: implement the logic
+            execute_filter(command, argc, argv);
         break;
     }
 }
