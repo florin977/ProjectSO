@@ -42,8 +42,6 @@ void get_type(COMMAND *command, char *s) {
     command->type = VIEW;
   } else if (!strcmp(s, "--remove_report")) {
     command->type = REMOVE_REPORT;
-  } else if (!strcmp(s, "--add_report")) {
-    command->type = ADD_REPORT;
   } else if (!strcmp(s, "--update_treshold")) {
     command->type = UPDATE_TRESHOLD;
   } else if (!strcmp(s, "--filter")) {
@@ -71,6 +69,30 @@ void create_file(const char *pathname, mode_t mode) {
 
   // Fix a bug with umask preventing the correct permissions
   chmod(pathname, mode);
+}
+
+int check_file_permission(COMMAND *command, char *arg) {
+  switch (command->type) {
+  case ADD:
+    break;
+
+  case LIST:
+    break;
+
+  case VIEW:
+    break;
+
+  case REMOVE_REPORT:
+    break;
+
+  case UPDATE_TRESHOLD:
+    break;
+
+  case FILTER:
+    break;
+  }
+
+  return 0;
 }
 
 // TODO: Implement these
@@ -112,11 +134,20 @@ void execute(COMMAND *command, int argc, char **argv) {
   // TODO: Check role using chmod in each case.
   switch (command->type) {
   case ADD:
+    // Create the directory and files, then ask for the first report. Subsequent
+    // calls on the same district just ask for the new report entry.
     if (argc != 1) {
       fprintf(stderr, "Invalid argument count for the ADD command\n");
       exit(-1);
     }
-    execute_add(command, argc, argv);
+
+    if (!check_file_permission(command, argv[0])) {
+      fprintf(stderr, "You do not have permissions to execute this command!\n");
+
+    } else {
+      execute_add(command, argc, argv);
+    }
+
     break;
 
   case LIST:
@@ -141,16 +172,6 @@ void execute(COMMAND *command, int argc, char **argv) {
       exit(-1);
     }
     execute_remove_report(command, argc, argv);
-    break;
-
-  case ADD_REPORT:
-    // add_report <district_id> <report_id> then prints a newline and asks for
-    // data from the user.
-    if (argc != 2) {
-      fprintf(stderr, "Invalid argument count for the ADD_REPORT command\n");
-      exit(-1);
-    }
-    execute_add_report(command, argc, argv);
     break;
 
   case UPDATE_TRESHOLD:
