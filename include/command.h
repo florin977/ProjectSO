@@ -30,13 +30,13 @@ typedef struct GPS_COORDS {
 } GPS_COORDS;
 
 typedef struct REPORT_DATA {
-  char description[200];
-  char username[30];
-  char issue_category[30];
-  GPS_COORDS coords;
-  time_t timestamp;
-  int severity_level;
   int report_id;
+  char username[30];
+  GPS_COORDS coords;
+  char issue_category[30];
+  int severity_level;
+  time_t timestamp;
+  char description[200];
 } REPORT_DATA;
 
 typedef union COMMAND_ARGS {
@@ -65,16 +65,17 @@ void get_role(COMMAND *command, char *s);
 void get_permissions(COMMAND *command);
 void get_username(COMMAND *command, char *s);
 void get_type(COMMAND *command, char *s);
-void get_report_data(COMMAND *command);
+int get_report_id(COMMAND *command, char *district);
+void get_report_data(COMMAND *command, char *district);
 
 void write_report(COMMAND *command, char *district);
-void execute_add(COMMAND *command, int argc, char **argv);
-void execute_list(COMMAND *command, int argc, char **argv);
-void execute_view(COMMAND *command, int argc, char **argv);
-void execute_remove_report(COMMAND *command, int argc, char **argv);
-void execute_add_report(COMMAND *command, int argc, char **argv);
-void execute_update_treshold(COMMAND *command, int argc, char **argv);
-void execute_filter(COMMAND *command, int argc, char **argv);
+void execute_add(COMMAND *command, char **argv);
+void execute_list(COMMAND *command, char **argv);
+void execute_view(COMMAND *command, char **argv);
+void execute_remove_report(COMMAND *command, char **argv);
+void execute_add_report(COMMAND *command, char **argv);
+void execute_update_treshold(COMMAND *command, char **argv);
+void execute_filter(COMMAND *command, char **argv);
 void execute(COMMAND *command, int argc, char **argv);
 
 #endif

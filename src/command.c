@@ -1,9 +1,11 @@
 #include "../include/command.h"
+#include <bits/pthreadtypes.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 void get_role(COMMAND *command, char *s) {
   if (!strcmp(s, "inspector")) {
@@ -33,16 +35,7 @@ void get_permissions(COMMAND *command) {
 }
 
 void get_username(COMMAND *command, char *s) {
-  int valid_length = 0;
-  // Check that the string is at most 30 characters long
-  for (int i = 0; i < 30; i++) {
-    if (s[i] == 0) {
-      valid_length = 1;
-      break;
-    }
-  }
-
-  if (!valid_length) {
+  if (strlen(s) >= 30) {
     fprintf(stderr, "Invalid username length. Limit is 30\n");
     exit(-1);
   }
@@ -71,7 +64,16 @@ void get_type(COMMAND *command, char *s) {
   }
 }
 
-void create_file(const char *pathname, mode_t mode) {
+void create_file(char *district, char *file, mode_t mode) {
+  char pathname[256];
+  if (strlen(district) + strlen(file) >= 256) {
+    fprintf(stderr, "Pathname is too long\n");
+  }
+
+  strcpy(pathname, district);
+  strcat(pathname, "/");
+  strcat(pathname, file);
+
   if (open(pathname, O_CREAT | O_EXCL | O_RDWR, mode) == -1) {
     // File already exists, just make sure to have the correct permissions and
     // continue
@@ -88,37 +90,175 @@ void create_file(const char *pathname, mode_t mode) {
   chmod(pathname, mode);
 }
 
-int check_file_permission(COMMAND *command, char *arg) {
-  switch (command->type) {
-  case ADD:
-    // Check that we can write to the reports.dat file;
-    char path[256];
-    sprintf(path, "%s/reports.dat", arg);
-    struct stat sb;
-    stat(path, &sb);
-    return (sb.st_mode & command->permission.WRITE_BIT);
+// format: rwx, -w- and so on
+int check_file_permission(COMMAND *command, char *district, char *file,
+                          char *permissions) {
+  char path[256];
+  sprintf(path, "%s/%s", district, file);
+  struct stat sb;
+  stat(path, &sb);
+  int r = permissions[0] == 'r' ? sb.st_mode & command->permission.READ_BIT : 1;
+  int w =
+      permissions[1] == 'w' ? sb.st_mode & command->permission.WRITE_BIT : 1;
+  int x =
+      permissions[2] == 'x' ? sb.st_mode & command->permission.EXECUTE_BIT : 1;
+  return (r && w && x);
+}
+
+int open_file(COMMAND *command, char *district, char *file, char *mode) {
+  int fd = -1;
+  char path[256];
+
+  int flags = O_APPEND;
+  if (mode[0] == 'r' && mode[1] == 'w') {
+    flags |= O_RDWR;
+  } else if (mode[0] == 'r') {
+    flags |= O_RDONLY;
+  } else if (mode[1] == 'w') {
+    flags |= O_WRONLY;
+  }
+
+  sprintf(path, "%s/%s", district, file);
+
+  if ((fd = open(path, flags)) == -1) {
+    perror(path);
+    exit(-1);
+  }
+
+  return fd;
+}
+
+// TODO: get the actual report id
+int get_report_id(COMMAND *command, char *district) {
+  int reports_dat = open_file(command, district, "reports.dat", "r-");
+  REPORT_DATA data;
+
+  // WARNING: If the file is misformatted, the report would not be found, even
+  // if it exists.
+  int offset = lseek(reports_dat, -sizeof(REPORT_DATA), SEEK_END);
+
+  if (offset == -1) {
+    return 0;
+  }
+
+  if (read(reports_dat, &data, sizeof(REPORT_DATA)) != sizeof(REPORT_DATA)) {
+    return 0;
+  }
+
+  return data.report_id + 1;
+}
+
+void write_report(COMMAND *command, char *district) {
+  // Open the reports.dat file (-1 on error)
+  int reports_dat = open_file(command, district, "reports.dat", "-w");
+
+  // Dump the entire struct in reports.dat (in binary)
+  if ((write(reports_dat, &command->args.report_data, sizeof(REPORT_DATA))) ==
+      -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  close(reports_dat);
+}
+
+REPORT_DATA get_report(COMMAND *command, char *district, char *report_id) {
+  int reports_dat = open_file(command, district, "reports.dat", "r-");
+  int id = atoi(report_id);
+
+  if (check_file_permission(command, district, "reports.dat", "r-")) {
+    REPORT_DATA data;
+    int count = 0;
+    while ((count = read(reports_dat, &data, sizeof(REPORT_DATA))) ==
+           sizeof(REPORT_DATA)) {
+      if (data.report_id == id) {
+        return data;
+      }
+    }
+
+    if (count == -1) {
+      perror("Reading from reports.dat");
+      exit(-1);
+    }
+
+  } else {
+    fprintf(stderr, "Can not read reports.dat\n");
+  }
+
+  REPORT_DATA not_found;
+  not_found.report_id = -1;
+  return not_found;
+
+  close(reports_dat);
+}
+
+void print_report(REPORT_DATA data) {
+  printf("ID: %d\nInspector: %s\nGPS coordinates: (%g,%g)\nIssue category: "
+         "%s\nSeverity level: %d\nTimestamp: %lld\nDescription: %s\n",
+         data.report_id, data.username, data.coords.lat, data.coords.lng,
+         data.issue_category, data.severity_level, (long long)data.timestamp,
+         data.description);
+}
+
+void write_district_cfg(COMMAND *command, char *district, int severity_level) {
+  int district_cfg = open_file(command, district, "district.cfg", "-w");
+
+  dprintf(district_cfg, "severity level=%d\n", severity_level);
+
+  close(district_cfg);
+}
+
+void write_logged_district(COMMAND *command, char *district) {
+  int logged_district = open_file(command, district, "logged_district", "-w");
+
+  char role[10];
+  switch (command->role) {
+  case MANAGER:
+    strcpy(role, "manager");
     break;
 
-  case LIST:
-    break;
-
-  case VIEW:
-    break;
-
-  case REMOVE_REPORT:
-    break;
-
-  case UPDATE_TRESHOLD:
-    break;
-
-  case FILTER:
+  case INSPECTOR:
+    strcpy(role, "inspector");
     break;
   }
 
-  return 0;
+  char cmd_type[16];
+  switch (command->type) {
+  case ADD:
+    strcpy(cmd_type, "add");
+    break;
+
+  case LIST:
+    strcpy(cmd_type, "list");
+    break;
+
+  case VIEW:
+    strcpy(cmd_type, "view");
+    break;
+
+  case REMOVE_REPORT:
+    strcpy(cmd_type, "remove_report");
+    break;
+
+  case UPDATE_TRESHOLD:
+    strcpy(cmd_type, "update_treshold");
+    break;
+
+  case FILTER:
+    strcpy(cmd_type, "filter");
+    break;
+  }
+
+  dprintf(logged_district, "%lld\t%30s\t%11s\t%15s/n", (long long)time(NULL),
+          command->username, role, cmd_type);
+
+  close(logged_district);
 }
 
-void get_report_data(COMMAND *command) {
+void get_report_data(COMMAND *command, char *district) {
+  command->args.report_data.report_id = get_report_id(command, district);
+
+  printf("%d\n", command->args.report_data.report_id);
   printf("Please enter the report data:\nX: ");
   if (scanf("%f", &command->args.report_data.coords.lat) != 1) {
     fprintf(stderr, "Invalid latitude\n");
@@ -145,6 +285,9 @@ void get_report_data(COMMAND *command) {
   // Consume newline
   fgetc(stdin);
 
+  // Get the timestamp
+  command->args.report_data.timestamp = time(NULL);
+
   printf("Descriprtion: ");
   if (fgets(command->args.report_data.description, 200, stdin) == NULL) {
     fprintf(stderr, "Invalid description\n");
@@ -158,81 +301,8 @@ void get_report_data(COMMAND *command) {
   strcpy(command->args.report_data.username, command->username);
 }
 
-void write_report(COMMAND *command, char *district) {
-  // Open the reports.dat file (-1 on error)
-  int reports_dat = -1;
-  char path[256];
-  sprintf(path, "%s/reports.dat", district);
-  if ((reports_dat = open(path, O_APPEND | O_WRONLY)) == -1) {
-    perror(path);
-    exit(-1);
-  }
-
-  // Write the data
-  // Report id is a placeholder until I figure out a way to randomise it
-  // (and keep it unique)
-  if ((write(reports_dat, &command->args.report_data.report_id, sizeof(int))) ==
-      -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // username; 1 char == 1 byte
-  // sizeof() returns exactly 30 cahracters, null terminator included. Could
-  // also work by doing strlen() + 1
-  if ((write(reports_dat, command->args.report_data.username,
-             sizeof(command->args.report_data.username))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // GPS latitude
-  if ((write(reports_dat, &command->args.report_data.coords.lat,
-             sizeof(float))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // GPS longitutde
-  if ((write(reports_dat, &command->args.report_data.coords.lng,
-             sizeof(float))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // issue_category; 1 char == 1 byte
-  if ((write(reports_dat, command->args.report_data.issue_category,
-             sizeof(command->args.report_data.issue_category))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // severity_level
-  if ((write(reports_dat, &command->args.report_data.severity_level,
-             sizeof(int))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // timestamp
-  if ((write(reports_dat, &command->args.report_data.timestamp,
-             sizeof(time_t))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  // description
-  if ((write(reports_dat, command->args.report_data.description,
-             sizeof(command->args.report_data.description))) == -1) {
-    perror("Writing to reports.dat");
-    exit(-1);
-  }
-
-  close(reports_dat);
-}
-
 // TODO: Implement these
-void execute_add(COMMAND *command, int argc, char **argv) {
+void execute_add(COMMAND *command, char **argv) {
   // Create district directory and change the mode if it exists
   if (mkdir(argv[0], 0750)) {
     if (errno == EEXIST) {
@@ -242,36 +312,51 @@ void execute_add(COMMAND *command, int argc, char **argv) {
     }
   }
 
-  char path[256];
-  snprintf(path, 255, "%s/reports.dat", argv[0]);
-  create_file(path, 0664);
+  create_file(argv[0], "reports.dat", 0664);
+  create_file(argv[0], "district.cfg", 0640);
+  create_file(argv[0], "logged_district", 0644);
 
-  snprintf(path, 255, "%s/district.cfg", argv[0]);
-  create_file(path, 0640);
+  get_report_data(command, argv[0]);
 
-  snprintf(path, 255, "%s/logged_district", argv[0]);
-  create_file(path, 0644);
-
-  get_report_data(command);
-
-  if (check_file_permission(command, argv[0])) {
+  if (check_file_permission(command, argv[0], "reports.dat", "-w-")) {
     write_report(command, argv[0]);
+  } else {
+    fprintf(stderr, "You do not have permissions to write to this file\n");
+  }
+
+  if (check_file_permission(command, argv[0], "district.cfg", "-w-")) {
+    // 3 is the default severity level
+    write_district_cfg(command, argv[0], 3);
+  } else {
+    fprintf(stderr, "You do not have permissions to write to this file\n");
+  }
+
+  if (check_file_permission(command, argv[0], "logged_district", "-w-")) {
+    write_logged_district(command, argv[0]);
   } else {
     fprintf(stderr, "You do not have permissions to write to this file\n");
   }
 }
 
-void execute_list(COMMAND *command, int argc, char **argv) {}
+void execute_list(COMMAND *command, char **argv) {}
 
-void execute_view(COMMAND *command, int argc, char **argv) {}
+void execute_view(COMMAND *command, char **argv) {
+  REPORT_DATA data = get_report(command, argv[0], argv[1]);
 
-void execute_remove_report(COMMAND *command, int argc, char **argv) {}
+  if (data.report_id != -1) {
+    print_report(data);
+  } else {
+    fprintf(stderr, "Report not found\n");
+  }
+}
 
-void execute_add_report(COMMAND *command, int argc, char **argv) {}
+void execute_remove_report(COMMAND *command, char **argv) {}
 
-void execute_update_treshold(COMMAND *command, int argc, char **argv) {}
+void execute_add_report(COMMAND *command, char **argv) {}
 
-void execute_filter(COMMAND *command, int argc, char **argv) {}
+void execute_update_treshold(COMMAND *command, char **argv) {}
+
+void execute_filter(COMMAND *command, char **argv) {}
 
 // these argv start right after the "--command"; argc is smaller as well.
 void execute(COMMAND *command, int argc, char **argv) {
@@ -286,7 +371,7 @@ void execute(COMMAND *command, int argc, char **argv) {
       exit(-1);
     }
 
-    execute_add(command, argc, argv);
+    execute_add(command, argv);
     break;
 
   case LIST:
@@ -294,7 +379,7 @@ void execute(COMMAND *command, int argc, char **argv) {
       fprintf(stderr, "Invalid argument count for the LIST command\n");
       exit(-1);
     }
-    execute_list(command, argc, argv);
+    execute_list(command, argv);
     break;
 
   case VIEW:
@@ -302,7 +387,7 @@ void execute(COMMAND *command, int argc, char **argv) {
       fprintf(stderr, "Invalid argument count for the VIEW command\n");
       exit(-1);
     }
-    execute_view(command, argc, argv);
+    execute_view(command, argv);
     break;
 
   case REMOVE_REPORT:
@@ -310,7 +395,7 @@ void execute(COMMAND *command, int argc, char **argv) {
       fprintf(stderr, "Invalid argument count for the REMOVE_REPORT command\n");
       exit(-1);
     }
-    execute_remove_report(command, argc, argv);
+    execute_remove_report(command, argv);
     break;
 
   case UPDATE_TRESHOLD:
@@ -319,7 +404,7 @@ void execute(COMMAND *command, int argc, char **argv) {
               "Invalid argument count for the UPDATE_TRESHOLD command\n");
       exit(-1);
     }
-    execute_update_treshold(command, argc, argv);
+    execute_update_treshold(command, argv);
     break;
 
   case FILTER:
@@ -327,7 +412,7 @@ void execute(COMMAND *command, int argc, char **argv) {
       fprintf(stderr, "Invalid argument count for the FILTER command\n");
       exit(-1);
     }
-    execute_filter(command, argc, argv);
+    execute_filter(command, argv);
     break;
   }
 }
