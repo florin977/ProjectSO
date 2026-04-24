@@ -10,6 +10,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define MAX_FIELD_LENGTH 64
+#define MAX_OP_LENGTH 8
+#define MAX_VAL_LENGTH 128
+
 typedef enum ROLE {
   MANAGER,
   INSPECTOR,
