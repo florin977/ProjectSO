@@ -59,19 +59,29 @@ void write_report(COMMAND *command) {
 
   close(reports_dat);
 }
-// report id on successful read, -1 on EOF or anything else.
+
+// Report id on successful read, -1 on EOF or anything else.
 int get_report_by_offset(COMMAND *command, off_t offset, REPORT_DATA *data) {
-  int reports_dat = open_file(command, "reports.dat", "r--", O_APPEND);
+  int reports_dat = open_file(command, "reports.dat", "r--", 0);
 
-  if (check_file_permission(command, "reports.dat", "r--")) {
-    lseek(reports_dat, offset, SEEK_SET);
+  if (reports_dat == -1) {
+    return -1;
+  }
 
-    if (read(reports_dat, data, sizeof(REPORT_DATA)) != sizeof(REPORT_DATA)) {
-      return -1;
-    }
+  if (!check_file_permission(command, "reports.dat", "r--")) {
+    fprintf(stderr, "Access denied: Cannot read reports.dat\n");
+    close(reports_dat);
+    return -1;
+  }
 
-  } else {
-    fprintf(stderr, "Can not read reports.dat\n");
+  if (lseek(reports_dat, offset, SEEK_SET) == -1) {
+    close(reports_dat);
+    return -1;
+  }
+
+  if (read(reports_dat, data, sizeof(REPORT_DATA)) != sizeof(REPORT_DATA)) {
+    close(reports_dat);
+    return -1;
   }
 
   close(reports_dat);
@@ -153,6 +163,10 @@ void get_report_data(COMMAND *command) {
 
 void delete_report_from_offset(COMMAND *command, off_t offset) {
   int reports_dat = open_file(command, "reports.dat", "rw-", 0);
+
+  if (reports_dat == -1) {
+    return;
+  }
 
   // Get file size in bytes
   off_t file_end = lseek(reports_dat, 0, SEEK_END);

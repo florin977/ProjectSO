@@ -64,9 +64,9 @@ void execute_view(COMMAND *command) {
   }
 
   REPORT_DATA data = {0};
-  get_report_by_id(command, command->argv[0], &data);
+  int id = get_report_by_id(command, command->argv[0], &data);
 
-  if (data.report_id != -1) {
+  if (id != -1) {
     print_report(data);
   } else {
     fprintf(stderr, "Report not found\n");
@@ -74,6 +74,11 @@ void execute_view(COMMAND *command) {
 }
 
 void execute_remove_report(COMMAND *command) {
+  if (command->role != MANAGER) {
+    fprintf(stderr, "Access denied: Only managers can remove reports.\n");
+    return;
+  }
+
   char *report_id = command->argv[0];
   REPORT_DATA data;
 
@@ -84,6 +89,11 @@ void execute_remove_report(COMMAND *command) {
 }
 
 void execute_update_threshold(COMMAND *command) {
+  if (command->role != MANAGER) {
+    fprintf(stderr, "Access denied: Only managers can update thresholds.\n");
+    return;
+  }
+
   update_parameter(command, "severity_level", command->argv[0]);
 }
 
@@ -171,4 +181,6 @@ void execute(COMMAND *command) {
     execute_filter(command);
     break;
   }
+
+  write_logged_district(command);
 }

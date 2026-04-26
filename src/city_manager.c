@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  if (!check_arg_integrity(argc, argv)) {
+  if (!check_arg_integrity(argv)) {
     fprintf(stderr, "Invalid argument usage! Usage: city_manager --role "
                     "<inspector|manager> --user <user name> --<command> "
                     "<...command details..>\n");

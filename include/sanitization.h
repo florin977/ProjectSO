@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-int check_command_integrity(int argc, char **argv);
-int check_arg_integrity(int argc, char **argv);
+int check_command_integrity(char **argv);
+int check_arg_integrity(char **argv);
 
 #endif

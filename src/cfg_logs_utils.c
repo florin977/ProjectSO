@@ -2,7 +2,25 @@
 
 void update_parameter(COMMAND *command, char *parameter, char *value) {
   int district_cfg = open_file(command, "district.cfg", "rw-", 0);
-  int file_size = lseek(district_cfg, 0, SEEK_END);
+
+  struct stat sb;
+  if (fstat(district_cfg, &sb) == -1) {
+    perror("fstat failed on district.cfg");
+    close(district_cfg);
+    return;
+  }
+
+  mode_t current_perms = sb.st_mode & 0777;
+  if (current_perms != 0640) {
+    fprintf(stderr,
+            "Diagnostic error: permissions for district.cfg have been altered! "
+            "Expected 0640, found 0%o. Aborting.\n",
+            current_perms);
+    close(district_cfg);
+    return;
+  }
+
+  off_t file_size = sb.st_size;
   lseek(district_cfg, 0, SEEK_SET);
 
   char *buffer = NULL;
@@ -15,6 +33,7 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
 
   if (read(district_cfg, buffer, file_size) != file_size) {
     fprintf(stderr, "Error while reading district.cfg\n");
+    close(district_cfg);
     free(buffer);
     exit(-1);
   }
@@ -23,6 +42,7 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
   if ((new_line = malloc((strlen(parameter) + strlen(value) + 2) *
                          sizeof(char))) == NULL) {
     perror("Malloc");
+    close(district_cfg);
     free(buffer);
     exit(-1);
   }
@@ -113,7 +133,7 @@ void write_logged_district(COMMAND *command) {
     break;
   }
 
-  dprintf(logged_district, "%lld\t%30s\t%11s\t%16s/n", (long long)time(NULL),
+  dprintf(logged_district, "%lld\t%30s\t%11s\t%16s\n", (long long)time(NULL),
           command->username, role, cmd_type);
 
   close(logged_district);
