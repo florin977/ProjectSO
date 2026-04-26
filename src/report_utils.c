@@ -148,7 +148,7 @@ void get_report_data(COMMAND *command) {
   // Get the timestamp
   command->report_data.timestamp = time(NULL);
 
-  printf("Descriprtion: ");
+  printf("Description: ");
   if (fgets(command->report_data.description, 200, stdin) == NULL) {
     fprintf(stderr, "Invalid description\n");
     exit(-1);
