@@ -3,14 +3,14 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -Iinclude
 TARGET = city_manager
 
-SRCS = src/city_manager.c \
-       src/command.c \
-       src/sanitization.c \
-       src/cfg_logs_utils.c \
-       src/cli_parser.c \
-       src/file_utils.c \
-       src/filter_utils.c \
-       src/report_utils.c
+SRCS = src/CityManager/city_manager.c \
+       src/CityManager/command.c \
+       src/CityManager/sanitization.c \
+       src/CityManager/cfg_logs_utils.c \
+       src/CityManager/cli_parser.c \
+       src/CityManager/file_utils.c \
+       src/CityManager/filter_utils.c \
+       src/CityManager/report_utils.c \
 
 OBJS = $(SRCS:.c=.o)
 

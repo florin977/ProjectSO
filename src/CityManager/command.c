@@ -1,10 +1,11 @@
 #include "../../include/command.h"
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-void execute_add(COMMAND *command) {
+int execute_add(COMMAND *command) {
   // Create district directory and change the mode if it exists
   if (mkdir(command->district, 0750)) {
     if (errno == EEXIST) {
@@ -45,6 +46,20 @@ void execute_add(COMMAND *command) {
   } else {
     fprintf(stderr, "You do not have permissions to write to this file\n");
   }
+
+  pid_t monitor_pid = get_monitor_pid();
+
+  if (monitor_pid == -1) {
+    return -1;
+  }
+
+  int logged = kill(monitor_pid, SIGUSR1);
+
+  if (logged == -1) {
+    return -1;
+  }
+
+  return 0;
 }
 
 void execute_list(COMMAND *command) {
@@ -161,6 +176,8 @@ void execute_remove_district(COMMAND *command) {
 
 // these argv start right after the "--command"; argc is smaller as well.
 void execute(COMMAND *command) {
+  int can_log = 1;
+
   switch (command->type) {
   case ADD:
     // Create the directory and files, then ask for the first report.
@@ -171,7 +188,7 @@ void execute(COMMAND *command) {
       exit(-1);
     }
 
-    execute_add(command);
+    can_log = execute_add(command);
     break;
 
   case LIST:
@@ -227,5 +244,11 @@ void execute(COMMAND *command) {
 
   if (command->type != REMOVE_DISTRICT) {
     write_logged_district(command);
+  }
+
+  if (can_log == 0) {
+    write_to_log(command, "monitor_reports successfully notified");
+  } else if (can_log == -1) {
+    write_to_log(command, "Failed to notify monitor_reports");
   }
 }

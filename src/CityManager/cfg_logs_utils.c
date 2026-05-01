@@ -142,3 +142,9 @@ void write_logged_district(COMMAND *command) {
 
   close(logged_district);
 }
+
+void write_to_log(COMMAND *command, const char *msg) {
+  int logged_district = open_file(command, "logged_district", "-w", O_APPEND);
+  dprintf(logged_district, "%s\n", msg);
+  close(logged_district);
+}

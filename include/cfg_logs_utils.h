@@ -9,4 +9,6 @@ void update_parameter(COMMAND *command, char *parameter, char *value);
 void write_district_cfg(COMMAND *command, char *field, char *value);
 
 void write_logged_district(COMMAND *command);
+
+void write_to_log(COMMAND *command, const char *msg);
 #endif

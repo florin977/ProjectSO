@@ -20,4 +20,6 @@ void get_report_data(COMMAND *command);
 
 void delete_report_from_offset(COMMAND *command, off_t offset);
 
+pid_t get_monitor_pid();
+
 #endif

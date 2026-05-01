@@ -1,4 +1,7 @@
 #include "../../include/report_utils.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
 
 void print_reports_file_info(COMMAND *command) {
   char path[256];
@@ -194,4 +197,25 @@ void delete_report_from_offset(COMMAND *command, off_t offset) {
 
   free(buffer);
   close(reports_dat);
+}
+
+pid_t get_monitor_pid() {
+  int fd = open(".monitor_pid", O_RDONLY);
+
+  if (fd == -1) {
+    return -1;
+  }
+
+  char buffer[100];
+  off_t file_size = lseek(fd, 0, SEEK_END);
+  lseek(fd, 0, SEEK_SET);
+
+  if (read(fd, buffer, file_size) == -1) {
+    return -1;
+  }
+
+  pid_t pid = -1;
+  pid = strtol(buffer, NULL, 10);
+
+  return pid;
 }
