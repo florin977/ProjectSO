@@ -1,4 +1,4 @@
-#include "../../include/cfg_logs_utils.h"
+#include "../include/cfg_logs_utils.h"
 
 void update_parameter(COMMAND *command, char *parameter, char *value) {
   int district_cfg = open_file(command, "district.cfg", "rw-", 0);
@@ -39,14 +39,15 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
   }
 
   char *new_line = NULL;
-  if ((new_line = malloc((strlen(parameter) + strlen(value) + 2) *
-                         sizeof(char))) == NULL) {
+  int new_line_size = (strlen(parameter) + strlen(value) + 3) * sizeof(char);
+  if ((new_line = malloc(new_line_size)) == NULL) {
     perror("Malloc");
     close(district_cfg);
     free(buffer);
     exit(-1);
   }
-  sprintf(new_line, "%s=%s\n", parameter, value);
+
+  snprintf(new_line, new_line_size, "%s=%s\n", parameter, value);
 
   char *match = strstr(buffer, parameter);
 
@@ -66,8 +67,8 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
     // Jump over \n
     line_end++;
 
-    __off_t start_offset = line_start - buffer;
-    __off_t copy_length = file_size - (line_end - buffer);
+    off_t start_offset = line_start - buffer;
+    off_t copy_length = file_size - (line_end - buffer);
 
     // Overwrite the line with the parameter
     lseek(district_cfg, start_offset, SEEK_SET);
@@ -75,7 +76,7 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
     // Append the other content.
     write(district_cfg, line_end, copy_length);
 
-    __off_t new_size = start_offset + strlen(new_line) + copy_length;
+    off_t new_size = start_offset + strlen(new_line) + copy_length;
 
     ftruncate(district_cfg, new_size);
   }
@@ -137,7 +138,7 @@ void write_logged_district(COMMAND *command) {
     break;
   }
 
-  dprintf(logged_district, "%lld\t%30s\t%11s\t%16s\n", (long long)time(NULL),
+  dprintf(logged_district, "%lld\t%s\t%s\t%s\n", (long long)time(NULL),
           command->username, role, cmd_type);
 
   close(logged_district);

@@ -1,4 +1,4 @@
-#include "../../include/command.h"
+#include "../include/command.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -26,7 +26,7 @@ int execute_add(COMMAND *command) {
 
   create_symlink(target_path, link_path);
 
-  get_report_data(command);
+  get_new_report_data(command);
 
   if (check_file_permission(command, "reports.dat", "-w-")) {
     write_report(command);

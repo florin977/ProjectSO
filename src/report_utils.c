@@ -1,7 +1,28 @@
-#include "../../include/report_utils.h"
+#include "../include/report_utils.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+
+pid_t get_monitor_pid() {
+  int fd = open(".monitor_pid", O_RDONLY);
+
+  if (fd == -1) {
+    return -1;
+  }
+
+  char buffer[100];
+  off_t file_size = lseek(fd, 0, SEEK_END);
+  lseek(fd, 0, SEEK_SET);
+
+  if (read(fd, buffer, file_size) == -1) {
+    return -1;
+  }
+
+  pid_t pid = -1;
+  pid = strtol(buffer, NULL, 10);
+
+  return pid;
+}
 
 void print_reports_file_info(COMMAND *command) {
   char path[256];
@@ -33,7 +54,7 @@ void print_reports_file_info(COMMAND *command) {
   printf("%s %ld %s %s\n", permissions, sb.st_size, time, "reports.dat");
 }
 
-int get_report_id(COMMAND *command) {
+int get_new_report_id(COMMAND *command) {
   int reports_dat = open_file(command, "reports.dat", "r-", O_APPEND);
   REPORT_DATA data;
 
@@ -118,8 +139,8 @@ void print_report(REPORT_DATA data) {
          data.description);
 }
 
-void get_report_data(COMMAND *command) {
-  command->report_data.report_id = get_report_id(command);
+void get_new_report_data(COMMAND *command) {
+  command->report_data.report_id = get_new_report_id(command);
 
   printf("%d\n", command->report_data.report_id);
   printf("Please enter the report data:\nX: ");
@@ -197,25 +218,4 @@ void delete_report_from_offset(COMMAND *command, off_t offset) {
 
   free(buffer);
   close(reports_dat);
-}
-
-pid_t get_monitor_pid() {
-  int fd = open(".monitor_pid", O_RDONLY);
-
-  if (fd == -1) {
-    return -1;
-  }
-
-  char buffer[100];
-  off_t file_size = lseek(fd, 0, SEEK_END);
-  lseek(fd, 0, SEEK_SET);
-
-  if (read(fd, buffer, file_size) == -1) {
-    return -1;
-  }
-
-  pid_t pid = -1;
-  pid = strtol(buffer, NULL, 10);
-
-  return pid;
 }
