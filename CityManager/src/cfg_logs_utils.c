@@ -86,7 +86,7 @@ void update_parameter(COMMAND *command, char *parameter, char *value) {
 }
 
 void write_district_cfg(COMMAND *command, char *field, char *value) {
-  int district_cfg = open_file(command, "district.cfg", "-w", 0);
+  int district_cfg = open_file(command, "district.cfg", "-w-", 0);
 
   dprintf(district_cfg, "%s=%s\n", field, value);
 
@@ -94,7 +94,7 @@ void write_district_cfg(COMMAND *command, char *field, char *value) {
 }
 
 void write_logged_district(COMMAND *command) {
-  int logged_district = open_file(command, "logged_district", "-w", O_APPEND);
+  int logged_district = open_file(command, "logged_district", "-w-", O_APPEND);
 
   char role[10];
   switch (command->role) {
@@ -145,7 +145,7 @@ void write_logged_district(COMMAND *command) {
 }
 
 void write_to_log(COMMAND *command, const char *msg) {
-  int logged_district = open_file(command, "logged_district", "-w", O_APPEND);
+  int logged_district = open_file(command, "logged_district", "-w-", O_APPEND);
   dprintf(logged_district, "%s\n", msg);
   close(logged_district);
 }

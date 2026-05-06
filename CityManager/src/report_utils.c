@@ -55,7 +55,7 @@ void print_reports_file_info(COMMAND *command) {
 }
 
 int get_new_report_id(COMMAND *command) {
-  int reports_dat = open_file(command, "reports.dat", "r-", O_APPEND);
+  int reports_dat = open_file(command, "reports.dat", "r--", O_APPEND);
   REPORT_DATA data;
 
   int offset = lseek(reports_dat, -sizeof(REPORT_DATA), SEEK_END);
@@ -73,7 +73,7 @@ int get_new_report_id(COMMAND *command) {
 
 void write_report(COMMAND *command) {
   // Open the reports.dat file (-1 on error)
-  int reports_dat = open_file(command, "reports.dat", "-w", O_APPEND);
+  int reports_dat = open_file(command, "reports.dat", "-w-", O_APPEND);
 
   // Dump the entire struct in reports.dat (in binary)
   if ((write(reports_dat, &command->report_data, sizeof(REPORT_DATA))) == -1) {
