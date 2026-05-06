@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define MAX_FILE_NAME_LENGTH 256
+
 void create_file(COMMAND *command, char *file, mode_t mode);
 
 int open_file(COMMAND *command, char *file, char *mode, int flags);

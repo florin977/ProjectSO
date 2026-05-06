@@ -19,10 +19,12 @@ int execute_add(COMMAND *command) {
   create_file(command, "district.cfg", 0640);
   create_file(command, "logged_district", 0644);
 
-  char target_path[256];
-  char link_path[256];
-  sprintf(target_path, "./%s/reports.dat", command->district);
-  sprintf(link_path, "./active_reports-%s", command->district);
+  char target_path[MAX_FILE_NAME_LENGTH];
+  char link_path[MAX_FILE_NAME_LENGTH];
+  snprintf(target_path, MAX_FILE_NAME_LENGTH, "./%s/reports.dat",
+           command->district);
+  snprintf(link_path, MAX_FILE_NAME_LENGTH, "./active_reports-%s",
+           command->district);
 
   create_symlink(target_path, link_path);
 
@@ -156,8 +158,9 @@ void execute_remove_district(COMMAND *command) {
     exit(-2);
   }
 
-  char symlink_path[256];
-  sprintf(symlink_path, "./active_reports-%s", command->district);
+  char symlink_path[MAX_FILE_NAME_LENGTH];
+  snprintf(symlink_path, MAX_FILE_NAME_LENGTH, "./active_reports-%s",
+           command->district);
 
   char *rm_args[4] = {"rm", "-rf", command->district, 0};
 

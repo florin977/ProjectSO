@@ -1,4 +1,5 @@
 *.o
 1/
 2/
-./CityManager/active-reports_*
+./CityManager/active_reports-1
+./CityManager/active_reports-2

@@ -25,8 +25,8 @@ pid_t get_monitor_pid() {
 }
 
 void print_reports_file_info(COMMAND *command) {
-  char path[256];
-  sprintf(path, "%s/reports.dat", command->district);
+  char path[MAX_FILE_NAME_LENGTH];
+  snprintf(path, MAX_FILE_NAME_LENGTH, "%s/reports.dat", command->district);
 
   struct stat sb;
   stat(path, &sb);

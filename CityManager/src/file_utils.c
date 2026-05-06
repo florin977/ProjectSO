@@ -1,14 +1,9 @@
 #include "../include/file_utils.h"
 
 void create_file(COMMAND *command, char *file, mode_t mode) {
-  char pathname[256];
-  if (strlen(command->district) + strlen(file) >= 256) {
-    fprintf(stderr, "Pathname is too long\n");
-  }
+  char pathname[MAX_FILE_NAME_LENGTH];
 
-  strcpy(pathname, command->district);
-  strcat(pathname, "/");
-  strcat(pathname, file);
+  snprintf(pathname, MAX_FILE_NAME_LENGTH, "%s/%s", command->district, file);
 
   if (open(pathname, O_CREAT | O_EXCL | O_RDWR, mode) == -1) {
     // File already exists, just make sure to have the correct permissions and
@@ -28,8 +23,8 @@ void create_file(COMMAND *command, char *file, mode_t mode) {
 
 // format: rwx, -w- and so on
 int check_file_permission(COMMAND *command, char *file, char *permissions) {
-  char path[256];
-  sprintf(path, "%s/%s", command->district, file);
+  char path[MAX_FILE_NAME_LENGTH];
+  snprintf(path, MAX_FILE_NAME_LENGTH, "%s/%s", command->district, file);
   struct stat sb;
   stat(path, &sb);
   int r = permissions[0] == 'r' ? sb.st_mode & command->permission.READ_BIT : 1;
@@ -66,16 +61,18 @@ int check_symlink(const char *filepath) {
 }
 
 int open_file(COMMAND *command, char *file, char *mode, int flags) {
-  char target_path[256];
+  char target_path[MAX_FILE_NAME_LENGTH];
   int is_report = (strcmp(file, "reports.dat") == 0);
 
   if (is_report) {
-    sprintf(target_path, "./active_reports-%s", command->district);
+    snprintf(target_path, MAX_FILE_NAME_LENGTH, "./active_reports-%s",
+             command->district);
     if (check_symlink(target_path) == -1) {
       return -1;
     }
   } else {
-    sprintf(target_path, "./%s/%s", command->district, file);
+    snprintf(target_path, MAX_FILE_NAME_LENGTH, "./%s/%s", command->district,
+             file);
   }
 
   int fd = -1;
