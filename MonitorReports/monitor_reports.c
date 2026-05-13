@@ -1,8 +1,10 @@
+#include <asm-generic/errno-base.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>  // For snprintf, perror, fprintf
-#include <stdlib.h> // For exit
-#include <string.h> // For strlen
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 volatile sig_atomic_t keep_alive = 1;
@@ -10,15 +12,37 @@ volatile sig_atomic_t keep_alive = 1;
 void handle_sigint(int sig) {
   keep_alive = 0;
 
-  const char *message =
-      "Monitor_pid: SIGINT received, stopping the program...\n";
-  write(STDOUT_FILENO, message, strlen(message));
+  char msg[1024];
+  snprintf(msg, 1024,
+           "Monitor_pid: SIGINT received, stopping the program...\n");
+  fprintf(stdout, "%4ld%s", strlen(msg), msg);
 }
 
 void handle_sigusr1(int sig) {
+  char msg[1024];
+  snprintf(msg, 1024, "Monitor_pid: A new report has been added.\n");
+  fprintf(stdout, "%4ld%s", strlen(msg), msg);
+}
 
-  const char *message = "Monitor_pid: A new report has been added.\n";
-  write(STDOUT_FILENO, message, strlen(message));
+pid_t get_monitor_pid() {
+  int fd = open(".monitor_pid", O_RDONLY);
+
+  if (fd == -1) {
+    return -1;
+  }
+
+  char buffer[100];
+  off_t file_size = lseek(fd, 0, SEEK_END);
+  lseek(fd, 0, SEEK_SET);
+
+  if (read(fd, buffer, file_size) == -1) {
+    return -1;
+  }
+
+  pid_t pid = -1;
+  pid = strtol(buffer, NULL, 10);
+
+  return pid;
 }
 
 void start() {
@@ -27,9 +51,17 @@ void start() {
   snprintf(pid, 100, "%d", monitor_pid);
   int fd = -1;
 
-  if ((fd = open(".monitor_pid", O_CREAT | O_RDWR | O_TRUNC, 0777)) == -1) {
-    perror("Failed to create file");
-    exit(-1);
+  if ((fd = open(".monitor_pid", O_CREAT | O_EXCL | O_RDWR | O_TRUNC, 0777)) ==
+      -1) {
+    if (errno == EEXIST) {
+      int monitor_pid = get_monitor_pid();
+      char msg[1024];
+      snprintf(msg, 1024, "Monitor reports already running. PID is: %d\n",
+               monitor_pid);
+
+      fprintf(stdout, "%4ld%s", strlen(msg), msg);
+      exit(-1);
+    }
   }
 
   write(fd, pid, strlen(pid));
@@ -40,7 +72,9 @@ void stop() {
   if (unlink(".monitor_pid") == -1) {
     perror("Failed to delete .monitor_pid");
   } else {
-    fprintf(stdout, "Monitor_pid ended successfully.\n");
+    char msg[1024];
+    snprintf(msg, 1024, "Monitor_pid ended successfully.\n");
+    fprintf(stdout, "%4ld%s", strlen(msg), msg);
   }
 }
 
